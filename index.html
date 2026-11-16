@@ -1,0 +1,1240 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Delantero Virtual</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=JetBrains+Mono:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              display: ['"Barlow Condensed"', 'sans-serif'],
+              sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+              mono: ['"JetBrains Mono"', 'monospace'],
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      html, body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: #060f1a;
+        color: #f8fafc;
+        font-family: "Plus Jakarta Sans", sans-serif;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      canvas.webgl-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main class="relative h-dvh w-screen overflow-hidden bg-[#060f1a]">
+      <div id="scene-mount" class="absolute inset-0 h-full w-full"></div>
+
+      <!-- Barra Superior -->
+      <header id="top-hud" class="hidden pointer-events-auto relative z-20 w-full bg-[#07111e]/92 border-b border-white/10 px-3 py-2 sm:px-5">
+        <div class="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-2 sm:gap-4">
+          <div class="flex items-center gap-3 sm:gap-5">
+            <span class="font-display text-lg sm:text-xl font-bold tracking-wide text-slate-100 whitespace-nowrap shrink-0">
+              Delantero Virtual
+            </span>
+            <div class="h-5 w-px bg-white/15 hidden sm:block"></div>
+            <div class="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm">
+              <div class="flex items-baseline gap-1.5 whitespace-nowrap">
+                <span class="text-slate-400">Goles</span>
+                <span id="stat-goals" class="font-mono tabular-nums text-base sm:text-lg font-bold text-emerald-400">0</span>
+              </div>
+              <span class="text-slate-600">·</span>
+              <div class="flex items-baseline gap-1.5 whitespace-nowrap">
+                <span class="text-slate-400">Atajadas</span>
+                <span id="stat-saves" class="font-mono tabular-nums text-base sm:text-lg font-bold text-amber-400">0</span>
+              </div>
+              <span class="text-slate-600">·</span>
+              <div class="flex items-baseline gap-1.5 whitespace-nowrap">
+                <span class="text-slate-400">Racha</span>
+                <span id="stat-streak" class="font-mono tabular-nums text-base sm:text-lg font-bold text-sky-400">0</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="flex items-center rounded-lg bg-slate-900/95 p-0.5 border border-white/10">
+              <button data-diff="facil" class="diff-btn px-2.5 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer">Fácil</button>
+              <button data-diff="medio" class="diff-btn px-2.5 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer">Medio</button>
+              <button data-diff="dificil" class="diff-btn px-2.5 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer">Difícil</button>
+            </div>
+
+            <div class="flex items-center rounded-lg bg-slate-900/95 p-0.5 border border-white/10">
+              <button data-mode="camera" class="mode-btn px-2.5 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer">Cámara</button>
+              <button data-mode="mouse" class="mode-btn px-2.5 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer">Ratón</button>
+              <button data-mode="touch" class="mode-btn px-2.5 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer">Teléfono</button>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 shrink-0">
+            <button id="btn-sound" type="button" class="rounded-lg bg-slate-800/90 hover:bg-slate-700 border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-100 whitespace-nowrap shrink-0 cursor-pointer">
+              Sonido: Sí
+            </button>
+            <button id="btn-pause" type="button" class="rounded-lg bg-slate-800/90 hover:bg-slate-700 border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-100 whitespace-nowrap shrink-0 cursor-pointer">
+              Pausa
+            </button>
+            <button id="btn-reset" type="button" class="rounded-lg bg-slate-800/90 hover:bg-slate-700 border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-100 whitespace-nowrap shrink-0 cursor-pointer">
+              Reiniciar Partido
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Resultado del tiro, repetición e indicación -->
+      <div id="shot-feedback" class="hidden pointer-events-none absolute inset-x-0 top-20 bottom-4 z-10 flex flex-col items-center justify-between px-4">
+        <div class="mt-2">
+          <div id="result-card" class="hidden rounded-xl bg-[#07111e]/90 border border-white/15 px-6 py-3 text-center shadow-xl">
+            <p id="result-title" class="font-display text-4xl sm:text-5xl font-extrabold tracking-wide text-emerald-400">¡GOOOL!</p>
+            <p id="result-sub" class="mt-0.5 text-xs sm:text-sm text-slate-300 font-mono tabular-nums">95 km/h</p>
+          </div>
+        </div>
+        <div id="aim-tip" class="rounded-lg bg-[#07111e]/85 border border-white/10 px-3.5 py-1.5 text-xs text-slate-200 text-center">
+          Apunta y desliza rápido el ratón hacia la portería para patear
+        </div>
+      </div>
+
+      <!-- Panel Webcam + Esqueleto Neón -->
+      <aside id="camera-panel" class="hidden pointer-events-auto absolute bottom-3 right-3 z-20 w-56 sm:w-72 rounded-xl bg-[#07111e]/92 border border-white/15 overflow-hidden shadow-2xl">
+        <div class="relative aspect-[4/3] w-full bg-slate-950">
+          <video id="webcam-video" playsinline muted class="h-full w-full object-cover -scale-x-100"></video>
+          <canvas id="skeleton-canvas" class="pointer-events-none absolute inset-0 h-full w-full object-cover -scale-x-100"></canvas>
+          <div id="camera-status-overlay" class="hidden absolute inset-0 flex flex-col items-center justify-center gap-2 bg-slate-950/90 p-3 text-center text-xs text-slate-200"></div>
+        </div>
+        <div class="p-2.5 flex flex-col gap-1.5">
+          <div class="flex items-center justify-between gap-2">
+            <span id="body-status-text" class="text-[11px] font-medium text-slate-300 truncate">Modo Cámara</span>
+            <button id="btn-toggle-skeleton" type="button" class="rounded-md bg-slate-800 hover:bg-slate-700 border border-white/10 px-2 py-1 text-[11px] font-semibold text-slate-100 whitespace-nowrap shrink-0 cursor-pointer">
+              Ocultar Esqueleto
+            </button>
+          </div>
+          <p id="feet-reminder" class="text-[11px] leading-snug text-slate-400">
+            Aléjate 1.5 - 2 metros para que se vean los pies.
+          </p>
+        </div>
+      </aside>
+
+      <!-- Pantalla de Inicio -->
+      <div id="start-overlay" class="pointer-events-auto absolute inset-0 z-30 flex items-center justify-center bg-[#060f1a]/62 p-4 sm:p-6">
+        <div class="w-full max-w-2xl rounded-2xl bg-[#0a1628]/95 border border-white/15 p-6 sm:p-8 shadow-2xl">
+          <div class="text-center">
+            <p class="text-xs sm:text-sm font-medium text-emerald-400 tracking-wide">
+              Duelo de Penaltis 3D · Portero IA
+            </p>
+            <h1 class="mt-2 font-display text-5xl sm:text-6xl font-extrabold tracking-tight text-white">
+              Delantero Virtual
+            </h1>
+            <p class="mt-3 text-sm sm:text-base text-slate-300 max-w-xl mx-auto">
+              Patea el balón frente a tu cámara estilo Kinect, desliza con el ratón o tira con el dedo en tu teléfono para vencer al portero controlado por Inteligencia Artificial.
+            </p>
+          </div>
+
+          <div class="mt-6">
+            <div class="flex items-center justify-between text-xs text-slate-400 mb-2 px-1">
+              <span class="font-semibold text-slate-200">Nivel del Portero IA</span>
+              <span id="menu-diff-desc">Velocidad normal, cubre bien el centro</span>
+            </div>
+            <div class="grid grid-cols-3 gap-2 rounded-xl bg-slate-900/95 p-1.5 border border-white/10">
+              <button data-diff="facil" class="menu-diff-btn py-2.5 px-3 rounded-lg text-sm font-bold transition-colors whitespace-nowrap cursor-pointer">Fácil</button>
+              <button data-diff="medio" class="menu-diff-btn py-2.5 px-3 rounded-lg text-sm font-bold transition-colors whitespace-nowrap cursor-pointer">Medio</button>
+              <button data-diff="dificil" class="menu-diff-btn py-2.5 px-3 rounded-lg text-sm font-bold transition-colors whitespace-nowrap cursor-pointer">Difícil</button>
+            </div>
+          </div>
+
+          <div class="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <button id="start-camera" type="button" class="flex flex-col items-center justify-center gap-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-4 py-4 font-bold transition-colors cursor-pointer">
+              <span class="text-sm whitespace-nowrap">Activar Cámara y Jugar</span>
+              <span class="text-xs font-medium text-slate-900/80">Rastreo corporal Kinect</span>
+            </button>
+            <button id="start-mouse" type="button" class="flex flex-col items-center justify-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-white/15 text-white px-4 py-4 font-bold transition-colors cursor-pointer">
+              <span class="text-sm whitespace-nowrap">Jugar con Ratón</span>
+              <span class="text-xs font-medium text-slate-300">Apunta y desliza rápido</span>
+            </button>
+            <button id="start-touch" type="button" class="flex flex-col items-center justify-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-white/15 text-white px-4 py-4 font-bold transition-colors cursor-pointer">
+              <span class="text-sm whitespace-nowrap">Jugar en Teléfono</span>
+              <span class="text-xs font-medium text-slate-300">Desliza con curva táctil</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal de Pausa -->
+      <div id="pause-modal" class="hidden pointer-events-auto absolute inset-0 z-40 flex items-center justify-center bg-[#060f1a]/75 p-4">
+        <div class="w-full max-w-sm rounded-2xl bg-[#0b182b] border border-white/15 p-6 text-center shadow-2xl">
+          <h2 class="font-display text-3xl font-bold text-white">Partido en Pausa</h2>
+          <div class="mt-4 flex items-center justify-center gap-4 text-sm text-slate-300">
+            <span>Goles: <strong id="pause-goals" class="font-mono tabular-nums text-emerald-400">0</strong></span>
+            <span class="text-slate-600">·</span>
+            <span>Atajadas: <strong id="pause-saves" class="font-mono tabular-nums text-amber-400">0</strong></span>
+            <span class="text-slate-600">·</span>
+            <span>Racha: <strong id="pause-streak" class="font-mono tabular-nums text-sky-400">0</strong></span>
+          </div>
+          <div class="mt-6 flex flex-col gap-2.5">
+            <button id="btn-resume" type="button" class="w-full rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 py-3 px-4 text-sm font-bold transition-colors cursor-pointer">
+              Reanudar Partido
+            </button>
+            <button id="btn-pause-reset" type="button" class="w-full rounded-xl bg-slate-800 hover:bg-slate-700 border border-white/10 text-slate-100 py-2.5 px-4 text-sm font-semibold transition-colors cursor-pointer">
+              Reiniciar Partido
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script type="module">
+      import * as THREE from 'three';
+      import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+      import { FilesetResolver, PoseLandmarker } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/+esm';
+
+      // --- 1. Motor de Sonido Web Audio API ---
+      class SoundEngine {
+        constructor() { this.ctx = null; this.muted = false; this.noiseBuffer = null; }
+        ensureContext() {
+          if (this.muted) return null;
+          if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return null;
+            this.ctx = new AudioCtx();
+          }
+          if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+          if (!this.noiseBuffer && this.ctx) {
+            const len = this.ctx.sampleRate * 1.5;
+            const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+            const data = buf.getChannelData(0);
+            let b0 = 0, b1 = 0, b2 = 0;
+            for (let i = 0; i < len; i++) {
+              const w = Math.random() * 2 - 1;
+              b0 = 0.99765 * b0 + w * 0.099046;
+              b1 = 0.963 * b1 + w * 0.2965164;
+              b2 = 0.57 * b2 + w * 1.0526913;
+              data[i] = (b0 + b1 + b2 + w * 0.1848) * 0.18;
+            }
+            this.noiseBuffer = buf;
+          }
+          return this.ctx;
+        }
+        unlock() { this.ensureContext(); }
+        setMuted(m) { this.muted = m; }
+        playUiClick() {
+          const ctx = this.ensureContext(); if (!ctx) return;
+          const now = ctx.currentTime, osc = ctx.createOscillator(), gain = ctx.createGain();
+          osc.type = 'triangle'; osc.frequency.setValueAtTime(620, now); osc.frequency.exponentialRampToValueAtTime(340, now + 0.045);
+          gain.gain.setValueAtTime(0.08, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+          osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now + 0.055);
+        }
+        playWhistle() {
+          const ctx = this.ensureContext(); if (!ctx) return;
+          const now = ctx.currentTime, o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), lfo = ctx.createOscillator(), lg = ctx.createGain(), mg = ctx.createGain();
+          o1.frequency.setValueAtTime(2820, now); o2.frequency.setValueAtTime(2970, now);
+          lfo.frequency.setValueAtTime(36, now); lg.gain.setValueAtTime(110, now);
+          lfo.connect(lg); lg.connect(o1.frequency); lg.connect(o2.frequency);
+          mg.gain.setValueAtTime(0.001, now); mg.gain.linearRampToValueAtTime(0.14, now + 0.03);
+          mg.gain.setValueAtTime(0.14, now + 0.19); mg.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+          o1.connect(mg); o2.connect(mg); mg.connect(ctx.destination);
+          lfo.start(now); o1.start(now); o2.start(now); lfo.stop(now + 0.3); o1.stop(now + 0.3); o2.stop(now + 0.3);
+        }
+        playKick(power01) {
+          const ctx = this.ensureContext(); if (!ctx) return;
+          const now = ctx.currentTime, p = Math.max(0.25, Math.min(1, power01));
+          const osc = ctx.createOscillator(), gain = ctx.createGain();
+          osc.type = 'sine'; osc.frequency.setValueAtTime(125 + p * 45, now); osc.frequency.exponentialRampToValueAtTime(38, now + 0.14);
+          gain.gain.setValueAtTime(0.32 + p * 0.25, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+          osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now + 0.17);
+          if (this.noiseBuffer) {
+            const src = ctx.createBufferSource(); src.buffer = this.noiseBuffer;
+            const flt = ctx.createBiquadFilter(); flt.type = 'bandpass'; flt.frequency.setValueAtTime(900 + p * 700, now);
+            const ng = ctx.createGain(); ng.gain.setValueAtTime(0.18 + p * 0.18, now); ng.gain.exponentialRampToValueAtTime(0.001, now + 0.085);
+            src.connect(flt); flt.connect(ng); ng.connect(ctx.destination); src.start(now); src.stop(now + 0.09);
+          }
+        }
+        playPostHit() {
+          const ctx = this.ensureContext(); if (!ctx) return;
+          const now = ctx.currentTime;
+          [340, 565, 920].forEach((f, idx) => {
+            const osc = ctx.createOscillator(), g = ctx.createGain();
+            osc.type = 'triangle'; osc.frequency.setValueAtTime(f, now);
+            g.gain.setValueAtTime(0.16 / (idx + 1), now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+            osc.connect(g); g.connect(ctx.destination); osc.start(now); osc.stop(now + 0.48);
+          });
+        }
+        playSave() {
+          const ctx = this.ensureContext(); if (!ctx) return;
+          const now = ctx.currentTime, osc = ctx.createOscillator(), g = ctx.createGain();
+          osc.type = 'triangle'; osc.frequency.setValueAtTime(175, now); osc.frequency.exponentialRampToValueAtTime(58, now + 0.11);
+          g.gain.setValueAtTime(0.28, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+          osc.connect(g); g.connect(ctx.destination); osc.start(now); osc.stop(now + 0.14);
+        }
+        playGoal() {
+          const ctx = this.ensureContext(); if (!ctx) return;
+          const now = ctx.currentTime;
+          [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+            const st = now + i * 0.075, osc = ctx.createOscillator(), g = ctx.createGain(), flt = ctx.createBiquadFilter();
+            flt.type = 'lowpass'; flt.frequency.setValueAtTime(2200, st);
+            osc.type = 'sawtooth'; osc.frequency.setValueAtTime(freq, st);
+            g.gain.setValueAtTime(0.001, st); g.gain.linearRampToValueAtTime(0.11, st + 0.025); g.gain.exponentialRampToValueAtTime(0.001, st + 0.55);
+            osc.connect(flt); flt.connect(g); g.connect(ctx.destination); osc.start(st); osc.stop(st + 0.58);
+          });
+          if (this.noiseBuffer) {
+            const src = ctx.createBufferSource(); src.buffer = this.noiseBuffer; src.loop = true;
+            const flt = ctx.createBiquadFilter(); flt.type = 'bandpass'; flt.frequency.setValueAtTime(680, now); flt.frequency.linearRampToValueAtTime(1150, now + 0.4);
+            const ng = ctx.createGain(); ng.gain.setValueAtTime(0.001, now); ng.gain.linearRampToValueAtTime(0.24, now + 0.14);
+            ng.gain.setValueAtTime(0.22, now + 0.7); ng.gain.exponentialRampToValueAtTime(0.001, now + 1.35);
+            src.connect(flt); flt.connect(ng); ng.connect(ctx.destination); src.start(now); src.stop(now + 1.4);
+          }
+        }
+      }
+      const sound = new SoundEngine();
+
+      // --- 2. Texturas Procedurales ---
+      function createPitchTexture(maxAniso) {
+        const size = 1024, c = document.createElement('canvas'); c.width = size; c.height = size;
+        const ctx = c.getContext('2d'), stripeH = size / 12;
+        for (let i = 0; i < 12; i++) {
+          ctx.fillStyle = i % 2 === 0 ? '#1b6d34' : '#217d3d';
+          ctx.fillRect(0, i * stripeH, size, stripeH + 1);
+        }
+        for (let i = 0; i < 5500; i++) {
+          const a = Math.random() * 0.07;
+          ctx.fillStyle = Math.random() > 0.5 ? `rgba(255,255,255,${a})` : `rgba(0,0,0,${a})`;
+          ctx.fillRect(Math.random() * size, Math.random() * size, 2, 3);
+        }
+        const wx = (x) => ((x + 18) / 36) * size, wz = (z) => ((z + 24) / 36) * size, m = (v) => (v / 36) * size;
+        ctx.strokeStyle = 'rgba(248, 250, 252, 0.92)'; ctx.lineWidth = Math.max(3, m(0.14));
+        const goalZ = -11.2;
+        ctx.beginPath(); ctx.moveTo(wx(-18), wz(goalZ)); ctx.lineTo(wx(18), wz(goalZ)); ctx.stroke();
+        ctx.strokeRect(wx(-9.16), wz(goalZ), m(18.32), m(5.5));
+        ctx.strokeRect(wx(-14.5), wz(goalZ), m(29), m(16.5));
+        ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(wx(0), wz(0), m(0.2), 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(wx(0), wz(0), m(7.4), 0.22 * Math.PI, 0.78 * Math.PI); ctx.stroke();
+        const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = Math.min(8, maxAniso);
+        return tex;
+      }
+
+      function createBallTexture(maxAniso) {
+        const size = 512, c = document.createElement('canvas'); c.width = size; c.height = size;
+        const ctx = c.getContext('2d'); ctx.fillStyle = '#f8fafc'; ctx.fillRect(0, 0, size, size);
+        ctx.fillStyle = '#0f172a';
+        const rows = 4, cols = 6, cw = size / cols, ch = size / rows;
+        const drawPoly = (cx, cy, r) => {
+          ctx.beginPath();
+          for (let i = 0; i < 5; i++) {
+            const a = (i / 5) * Math.PI * 2 - Math.PI / 2, px = cx + Math.cos(a) * r, py = cy + Math.sin(a) * r;
+            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          }
+          ctx.closePath(); ctx.fill();
+        };
+        for (let r = 0; r < rows; r++) {
+          for (let col = 0; col < cols; col++) {
+            const cx = (col + (r % 2 === 0 ? 0.5 : 0)) * cw, cy = (r + 0.5) * ch;
+            drawPoly(cx, cy, cw * 0.26);
+            if (r % 2 === 1 && col === 0) drawPoly(size, cy, cw * 0.26);
+          }
+        }
+        ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 3;
+        for (let r = 0; r <= rows; r++) { ctx.beginPath(); ctx.moveTo(0, r * ch); ctx.lineTo(size, r * ch); ctx.stroke(); }
+        const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = Math.min(4, maxAniso);
+        return tex;
+      }
+
+      function createContactShadowTexture() {
+        const size = 128, c = document.createElement('canvas'); c.width = size; c.height = size;
+        const ctx = c.getContext('2d'), g = ctx.createRadialGradient(64, 64, 10, 64, 64, 64);
+        g.addColorStop(0, 'rgba(3,8,16,0.72)'); g.addColorStop(0.55, 'rgba(3,8,16,0.3)'); g.addColorStop(1, 'rgba(3,8,16,0)');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, size, size);
+        return new THREE.CanvasTexture(c);
+      }
+
+      // --- 3. Portero IA Articulado ---
+      const DIFF_CFG = {
+        facil: { delay: 0.27, diveSpeed: 5.2, acc: 0.42, patrolSpeed: 1.1, patrolAmp: 0.9, reach: 0.88 },
+        medio: { delay: 0.11, diveSpeed: 8.4, acc: 0.80, patrolSpeed: 1.5, patrolAmp: 0.65, reach: 1.0 },
+        dificil: { delay: 0.02, diveSpeed: 12.2, acc: 0.98, patrolSpeed: 2.0, patrolAmp: 0.4, reach: 1.08 },
+      };
+
+      const _simPos = new THREE.Vector3(), _simVel = new THREE.Vector3();
+      const _wGL = new THREE.Vector3(), _wGR = new THREE.Vector3(), _wT = new THREE.Vector3(), _wH = new THREE.Vector3(), _wKL = new THREE.Vector3(), _wKR = new THREE.Vector3();
+
+      class Goalkeeper {
+        constructor(shadowTex) {
+          this.homeZ = -10.82;
+          this.group = new THREE.Group();
+          this.group.position.set(0, 0, this.homeZ);
+
+          this.shadow = new THREE.Mesh(
+            new THREE.PlaneGeometry(1.75, 1.2),
+            new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, opacity: 0.55, depthWrite: false })
+          );
+          this.shadow.rotation.x = -Math.PI / 2; this.shadow.position.y = 0.015;
+          this.group.add(this.shadow);
+
+          this.bodyPivot = new THREE.Group(); this.bodyPivot.position.set(0, 0.92, 0);
+          this.group.add(this.bodyPivot);
+
+          const jerseyMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.78, metalness: 0.05 });
+          const darkMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.78, metalness: 0.06 });
+          const skinMat = new THREE.MeshStandardMaterial({ color: 0xe6b89c, roughness: 0.62 });
+          const gloveMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.42, metalness: 0.12 });
+          const bootMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.35, metalness: 0.25 });
+
+          this.torsoGroup = new THREE.Group(); this.bodyPivot.add(this.torsoGroup);
+          const pelvis = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.18, 0.24), darkMat);
+          pelvis.position.y = 0.02; pelvis.castShadow = true;
+          this.torsoMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.2, 0.56, 10), jerseyMat);
+          this.torsoMesh.position.y = 0.36; this.torsoMesh.scale.set(1.08, 1, 0.68); this.torsoMesh.castShadow = true;
+          const sash = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.11, 0.29), darkMat); sash.position.y = 0.46;
+          this.torsoGroup.add(pelvis, this.torsoMesh, sash);
+
+          this.headGroup = new THREE.Group(); this.headGroup.position.set(0, 0.68, 0); this.torsoGroup.add(this.headGroup);
+          const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.075, 0.1, 8), skinMat); neck.position.y = 0.04;
+          this.headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.145, 12, 10), skinMat);
+          this.headMesh.position.y = 0.19; this.headMesh.castShadow = true;
+          const hair = new THREE.Mesh(new THREE.SphereGeometry(0.152, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), darkMat);
+          hair.position.set(0, 0.21, -0.01); hair.rotation.x = -0.2;
+          this.headGroup.add(neck, this.headMesh, hair);
+
+          const makeArm = (side) => {
+            const sh = new THREE.Group(); sh.position.set(side * 0.29, 0.57, 0); this.torsoGroup.add(sh);
+            const ua = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.05, 0.3, 8), jerseyMat); ua.position.y = -0.15; ua.castShadow = true; sh.add(ua);
+            const el = new THREE.Group(); el.position.set(0, -0.3, 0); sh.add(el);
+            const fa = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.042, 0.28, 8), jerseyMat); fa.position.y = -0.14; fa.castShadow = true; el.add(fa);
+            const gl = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.17, 0.09), gloveMat); gl.position.set(0, -0.31, 0.02); gl.castShadow = true; el.add(gl);
+            return { sh, el, gl };
+          };
+          const lArm = makeArm(-1), rArm = makeArm(1);
+          this.lSh = lArm.sh; this.lEl = lArm.el; this.lGlove = lArm.gl;
+          this.rSh = rArm.sh; this.rEl = rArm.el; this.rGlove = rArm.gl;
+
+          const makeLeg = (side) => {
+            const hip = new THREE.Group(); hip.position.set(side * 0.13, -0.04, 0); this.bodyPivot.add(hip);
+            const th = new THREE.Mesh(new THREE.CylinderGeometry(0.088, 0.072, 0.42, 8), darkMat); th.position.y = -0.21; th.castShadow = true; hip.add(th);
+            const kn = new THREE.Group(); kn.position.set(0, -0.42, 0); hip.add(kn);
+            const shin = new THREE.Mesh(new THREE.CylinderGeometry(0.068, 0.052, 0.42, 8), jerseyMat); shin.position.y = -0.21; shin.castShadow = true; kn.add(shin);
+            const boot = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.09, 0.24), bootMat); boot.position.set(0, -0.43, 0.06); boot.castShadow = true; kn.add(boot);
+            return { hip, kn, shin };
+          };
+          const lLeg = makeLeg(-1), rLeg = makeLeg(1);
+          this.lHip = lLeg.hip; this.lKn = lLeg.kn; this.lShin = lLeg.shin;
+          this.rHip = rLeg.hip; this.rKn = rLeg.kn; this.rShin = rLeg.shin;
+          this.reset();
+        }
+        reset() {
+          this.currentX = 0; this.currentY = 0; this.diveRoll = 0;
+          this.targetX = 0; this.targetY = 0; this.targetRoll = 0;
+          this.reactionTimer = 0; this.hasPredicted = false;
+          this.celebrate = 0; this.disappoint = 0; this.time = 0; this.armStretch = 0;
+        }
+        onKick() { this.hasPredicted = false; this.reactionTimer = 0; }
+        applyDivePose(roll) {
+          if (Math.abs(roll) > 0.35) {
+            this.lSh.rotation.set(-0.2, 0, -2.75); this.rSh.rotation.set(-0.2, 0, 2.75);
+          } else {
+            this.lSh.rotation.set(-1.1, 0, -0.95); this.rSh.rotation.set(-1.1, 0, 0.95);
+          }
+          this.lEl.rotation.set(-0.25, 0, 0); this.rEl.rotation.set(-0.25, 0, 0);
+        }
+        applyReadyPose() {
+          const b = Math.sin(this.time * 6.5) * 0.04;
+          this.torsoGroup.rotation.x = 0.14 + b * 0.4;
+          this.lSh.rotation.set(-0.85, 0, -0.45); this.lEl.rotation.set(-1.15, 0, 0.25);
+          this.rSh.rotation.set(-0.85, 0, 0.45); this.rEl.rotation.set(-1.15, 0, -0.25);
+          this.lHip.rotation.set(-0.22 - b, 0, 0.12); this.lKn.rotation.set(0.42 + b * 1.5, 0, 0);
+          this.rHip.rotation.set(-0.22 - b, 0, -0.12); this.rKn.rotation.set(0.42 + b * 1.5, 0, 0);
+        }
+        getReplayState() {
+          return { x: this.currentX, y: this.currentY, roll: this.diveRoll, stretch: this.armStretch };
+        }
+        applyReplayState(x, y, roll, stretch) {
+          this.currentX = x; this.currentY = y; this.diveRoll = roll; this.armStretch = stretch;
+          if (Math.abs(roll) > 0.08 || stretch > 0.12) this.applyDivePose(roll);
+          else this.applyReadyPose();
+          this.group.position.x = THREE.MathUtils.clamp(this.currentX, -3.35, 3.35);
+          this.bodyPivot.position.y = 0.92 + this.currentY;
+          this.bodyPivot.rotation.z = this.diveRoll;
+          this.shadow.scale.set(1 + Math.abs(this.diveRoll) * 0.45, 1, 1);
+        }
+        predict(ballPos, ballVel, spinY, diff) {
+          const cfg = DIFF_CFG[diff];
+          _simPos.copy(ballPos); _simVel.copy(ballVel);
+          const dt = 0.02;
+          for (let i = 0; i < 90; i++) {
+            _simVel.y -= 9.81 * dt; _simVel.x += spinY * 5.2 * dt; _simVel.multiplyScalar(1 - 0.14 * dt);
+            _simPos.addScaledVector(_simVel, dt);
+            if (_simPos.y < 0.115) { _simPos.y = 0.115; _simVel.y = Math.abs(_simVel.y) * 0.55; }
+            if (_simPos.z <= this.homeZ) break;
+          }
+          const err = (1 - cfg.acc) * 2.25;
+          const dx = THREE.MathUtils.clamp(_simPos.x * cfg.acc + (Math.random() * 2 - 1) * err, -3.25, 3.25);
+          const dy = THREE.MathUtils.clamp(_simPos.y, 0.25, 2.25);
+          this.targetX = dx;
+          const lat = dx - this.currentX;
+          if (Math.abs(lat) > 0.72 || dy > 1.55) {
+            this.targetRoll = THREE.MathUtils.clamp(-lat * 0.42, -1.28, 1.28);
+            this.targetY = THREE.MathUtils.clamp((dy - 0.95) * 0.65, -0.15, 0.82);
+          } else {
+            this.targetRoll = -lat * 0.18;
+            this.targetY = Math.max(0, (dy - 1.45) * 0.55);
+          }
+        }
+        update(dt, diff, inFlight, ballPos, ballVel, spinY) {
+          this.time += dt;
+          const cfg = DIFF_CFG[diff];
+          if (this.celebrate > 0) {
+            this.celebrate = Math.max(0, this.celebrate - dt);
+            this.currentY = THREE.MathUtils.damp(this.currentY, Math.abs(Math.sin(this.time * 9)) * 0.25, 10, dt);
+            this.diveRoll = THREE.MathUtils.damp(this.diveRoll, 0, 7, dt);
+            this.lSh.rotation.set(-0.2, 0, -2.6); this.rSh.rotation.set(-0.2, 0, 2.6);
+          } else if (this.disappoint > 0) {
+            this.disappoint = Math.max(0, this.disappoint - dt);
+            this.currentY = THREE.MathUtils.damp(this.currentY, -0.22, 6, dt);
+            this.torsoGroup.rotation.x = 0.45;
+          } else if (inFlight && ballVel.z < -0.5) {
+            this.reactionTimer += dt;
+            if (!this.hasPredicted && this.reactionTimer >= cfg.delay) {
+              this.predict(ballPos, ballVel, spinY, diff);
+              this.hasPredicted = true;
+            }
+            if (this.hasPredicted) {
+              if (diff === 'dificil' && ballPos.z > this.homeZ + 1.5) this.predict(ballPos, ballVel, spinY, diff);
+              const dx = this.targetX - this.currentX, step = cfg.diveSpeed * dt;
+              this.currentX += Math.abs(dx) <= step ? dx : Math.sign(dx) * step;
+              const lam = diff === 'dificil' ? 12 : diff === 'medio' ? 8 : 5;
+              this.currentY = THREE.MathUtils.damp(this.currentY, this.targetY, lam, dt);
+              this.diveRoll = THREE.MathUtils.damp(this.diveRoll, this.targetRoll, lam, dt);
+              this.armStretch = THREE.MathUtils.damp(this.armStretch, 1, 14, dt);
+              this.applyDivePose(this.diveRoll);
+            }
+          } else {
+            const patrol = Math.sin(this.time * cfg.patrolSpeed) * cfg.patrolAmp;
+            this.currentX = THREE.MathUtils.damp(this.currentX, patrol, 4.5, dt);
+            this.currentY = THREE.MathUtils.damp(this.currentY, 0, 8, dt);
+            this.diveRoll = THREE.MathUtils.damp(this.diveRoll, 0, 8, dt);
+            this.armStretch = THREE.MathUtils.damp(this.armStretch, 0, 8, dt);
+            this.applyReadyPose();
+          }
+          this.group.position.x = THREE.MathUtils.clamp(this.currentX, -3.35, 3.35);
+          this.bodyPivot.position.y = 0.92 + this.currentY;
+          this.bodyPivot.rotation.z = this.diveRoll;
+          this.shadow.scale.set(1 + Math.abs(this.diveRoll) * 0.45, 1, 1);
+        }
+        checkSave(ballPos, r, diff, outNormal) {
+          const s = DIFF_CFG[diff].reach;
+          this.group.updateMatrixWorld(true);
+          this.lGlove.getWorldPosition(_wGL); this.rGlove.getWorldPosition(_wGR);
+          this.torsoMesh.getWorldPosition(_wT); this.headMesh.getWorldPosition(_wH);
+          this.lShin.getWorldPosition(_wKL); this.rShin.getWorldPosition(_wKR);
+          const spheres = [[_wGL, 0.25 * s], [_wGR, 0.25 * s], [_wT, 0.31 * s], [_wH, 0.18 * s], [_wKL, 0.19 * s], [_wKR, 0.19 * s]];
+          for (const [c, cr] of spheres) {
+            const md = cr + r;
+            if (ballPos.distanceToSquared(c) <= md * md) {
+              outNormal.subVectors(ballPos, c).normalize();
+              if (outNormal.z < 0.25) { outNormal.z = 0.55; outNormal.normalize(); }
+              return true;
+            }
+          }
+          return false;
+        }
+      }
+
+      // --- 4. Estado del Juego y UI ---
+      const isPhoneDevice =
+        /Mobi|Android|iPhone|iPod/i.test(navigator.userAgent) ||
+        (window.matchMedia && window.matchMedia('(pointer: coarse)').matches && window.innerWidth < 768);
+
+      const state = {
+        phase: 'menu',
+        phaseBeforePause: 'ready',
+        difficulty: 'medio',
+        controlMode: 'mouse',
+        showSkeleton: true,
+        isReplaying: false,
+        lastSpeedKmh: 0,
+        stats: { goals: 0, saves: 0, streak: 0 },
+      };
+
+      const el = {
+        mount: document.getElementById('scene-mount'),
+        hud: document.getElementById('top-hud'),
+        goals: document.getElementById('stat-goals'),
+        saves: document.getElementById('stat-saves'),
+        streak: document.getElementById('stat-streak'),
+        feedback: document.getElementById('shot-feedback'),
+        resCard: document.getElementById('result-card'),
+        resTitle: document.getElementById('result-title'),
+        resSub: document.getElementById('result-sub'),
+        aimTip: document.getElementById('aim-tip'),
+        camPanel: document.getElementById('camera-panel'),
+        camVideo: document.getElementById('webcam-video'),
+        camCanvas: document.getElementById('skeleton-canvas'),
+        camOverlay: document.getElementById('camera-status-overlay'),
+        bodyStatus: document.getElementById('body-status-text'),
+        feetReminder: document.getElementById('feet-reminder'),
+        startOverlay: document.getElementById('start-overlay'),
+        menuDiffDesc: document.getElementById('menu-diff-desc'),
+        pauseModal: document.getElementById('pause-modal'),
+        pauseGoals: document.getElementById('pause-goals'),
+        pauseSaves: document.getElementById('pause-saves'),
+        pauseStreak: document.getElementById('pause-streak'),
+      };
+
+      const DIFF_DESCS = {
+        facil: 'Portero lento, deja espacios abiertos',
+        medio: 'Velocidad normal, cubre bien el centro',
+        dificil: 'Reflejos rápidos, predice tiros y exige esquina',
+      };
+
+      function refreshUI() {
+        const playing = state.phase !== 'menu';
+        el.hud.classList.toggle('hidden', !playing);
+        el.startOverlay.classList.toggle('hidden', playing);
+        el.pauseModal.classList.toggle('hidden', state.phase !== 'paused');
+        el.feedback.classList.toggle('hidden', !playing || state.phase === 'paused');
+        el.camPanel.classList.toggle('hidden', !playing || state.controlMode !== 'camera');
+
+        el.goals.textContent = state.stats.goals;
+        el.saves.textContent = state.stats.saves;
+        el.streak.textContent = state.stats.streak;
+        el.pauseGoals.textContent = state.stats.goals;
+        el.pauseSaves.textContent = state.stats.saves;
+        el.pauseStreak.textContent = state.stats.streak;
+
+        el.menuDiffDesc.textContent = DIFF_DESCS[state.difficulty];
+        document.querySelectorAll('.menu-diff-btn').forEach((b) => {
+          const act = b.dataset.diff === state.difficulty;
+          b.className = `menu-diff-btn py-2.5 px-3 rounded-lg text-sm font-bold transition-colors whitespace-nowrap cursor-pointer ${act ? 'bg-emerald-500 text-slate-950' : 'text-slate-300 hover:text-white hover:bg-slate-800/70'}`;
+        });
+        document.querySelectorAll('.diff-btn').forEach((b) => {
+          const act = b.dataset.diff === state.difficulty;
+          b.className = `diff-btn px-2.5 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${act ? 'bg-emerald-500 text-slate-950' : 'text-slate-300 hover:text-white'}`;
+        });
+        document.querySelectorAll('.mode-btn').forEach((b) => {
+          const act = b.dataset.mode === state.controlMode;
+          b.className = `mode-btn px-2.5 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${act ? 'bg-sky-400 text-slate-950' : 'text-slate-300 hover:text-white'}`;
+        });
+
+        el.aimTip.classList.toggle('hidden', state.phase !== 'ready');
+        el.aimTip.textContent =
+          state.controlMode === 'camera'
+            ? 'Patea al aire frente a la cámara para disparar'
+            : state.controlMode === 'mouse'
+              ? 'Apunta y desliza rápido el ratón hacia la portería para patear'
+              : 'Desliza el dedo hacia la portería para patear con curva';
+        el.resCard.classList.toggle('hidden', state.phase !== 'result');
+        if (state.phase === 'result') {
+          el.resSub.textContent = state.isReplaying
+            ? `${state.lastSpeedKmh} km/h · Repetición en Cámara Lenta`
+            : `${state.lastSpeedKmh} km/h`;
+        }
+      }
+
+      // --- 5. Escena 3D Three.js ---
+      const GOAL_Z = -11.2, GOAL_HALF_W = 3.66, GOAL_H = 2.44, GOAL_D = 1.95, POST_R = 0.065, BALL_R = 0.115;
+      const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.08;
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.setSize(el.mount.clientWidth, el.mount.clientHeight);
+      renderer.domElement.className = 'webgl-canvas';
+      el.mount.appendChild(renderer.domElement);
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x071324);
+      scene.fog = new THREE.FogExp2(0x071324, 0.0115);
+
+      const camera = new THREE.PerspectiveCamera(48, el.mount.clientWidth / Math.max(1, el.mount.clientHeight), 0.1, 180);
+      camera.position.set(0, 1.68, 4.15);
+      const lookTarget = new THREE.Vector3(0, 1.15, GOAL_Z);
+      camera.lookAt(lookTarget);
+
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+      pmrem.dispose();
+
+      scene.add(new THREE.HemisphereLight(0x7dd3fc, 0x14532d, 0.72));
+      const keyLight = new THREE.DirectionalLight(0xfff5e0, 2.25);
+      keyLight.position.set(11, 18, 9);
+      keyLight.castShadow = true;
+      keyLight.shadow.mapSize.set(1024, 1024);
+      keyLight.shadow.camera.left = -13; keyLight.shadow.camera.right = 13;
+      keyLight.shadow.camera.top = 13; keyLight.shadow.camera.bottom = -13;
+      keyLight.shadow.camera.near = 2; keyLight.shadow.camera.far = 45;
+      keyLight.shadow.bias = -0.0005;
+      keyLight.target.position.set(0, 0, -6);
+      scene.add(keyLight, keyLight.target);
+      const rim = new THREE.DirectionalLight(0x60a5fa, 0.85);
+      rim.position.set(-10, 9, -20);
+      scene.add(rim);
+
+      const maxAniso = renderer.capabilities.getMaxAnisotropy();
+      const shadowTex = createContactShadowTexture();
+
+      const outerGround = new THREE.Mesh(
+        new THREE.PlaneGeometry(160, 160),
+        new THREE.MeshStandardMaterial({ color: 0x114521, roughness: 0.96 })
+      );
+      outerGround.rotation.x = -Math.PI / 2; outerGround.position.y = -0.015;
+      scene.add(outerGround);
+
+      const pitch = new THREE.Mesh(
+        new THREE.PlaneGeometry(36, 36),
+        new THREE.MeshStandardMaterial({ map: createPitchTexture(maxAniso), roughness: 0.9, metalness: 0.02 })
+      );
+      pitch.rotation.x = -Math.PI / 2; pitch.position.set(0, 0, -6); pitch.receiveShadow = true;
+      scene.add(pitch);
+
+      // Portería 3D y red
+      const postMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.24, metalness: 0.72 });
+      const postGeo = new THREE.CylinderGeometry(POST_R, POST_R, GOAL_H, 12);
+      const lPost = new THREE.Mesh(postGeo, postMat); lPost.position.set(-GOAL_HALF_W, GOAL_H / 2, GOAL_Z); lPost.castShadow = true;
+      const rPost = new THREE.Mesh(postGeo, postMat); rPost.position.set(GOAL_HALF_W, GOAL_H / 2, GOAL_Z); rPost.castShadow = true;
+      const crossbar = new THREE.Mesh(new THREE.CylinderGeometry(POST_R, POST_R, GOAL_HALF_W * 2 + POST_R * 2, 12), postMat);
+      crossbar.rotation.z = Math.PI / 2; crossbar.position.set(0, GOAL_H, GOAL_Z); crossbar.castShadow = true;
+      scene.add(lPost, rPost, crossbar);
+
+      const netMat = new THREE.MeshBasicMaterial({ color: 0xe2e8f0, wireframe: true, transparent: true, opacity: 0.34 });
+      const backNet = new THREE.Mesh(new THREE.PlaneGeometry(GOAL_HALF_W * 2, GOAL_H, 18, 7), netMat);
+      backNet.position.set(0, GOAL_H / 2, GOAL_Z - GOAL_D);
+      const netAttr = backNet.geometry.attributes.position;
+      const netBase = new Float32Array(netAttr.array);
+      const sideGeo = new THREE.PlaneGeometry(GOAL_D, GOAL_H, 6, 7);
+      const lNet = new THREE.Mesh(sideGeo, netMat); lNet.rotation.y = Math.PI / 2; lNet.position.set(-GOAL_HALF_W, GOAL_H / 2, GOAL_Z - GOAL_D / 2);
+      const rNet = new THREE.Mesh(sideGeo, netMat); rNet.rotation.y = Math.PI / 2; rNet.position.set(GOAL_HALF_W, GOAL_H / 2, GOAL_Z - GOAL_D / 2);
+      const tNet = new THREE.Mesh(new THREE.PlaneGeometry(GOAL_HALF_W * 2, GOAL_D, 18, 6), netMat); tNet.rotation.x = Math.PI / 2; tNet.position.set(0, GOAL_H, GOAL_Z - GOAL_D / 2);
+      scene.add(backNet, lNet, rNet, tNet);
+
+      // Gradas e hinchas instanciados
+      const standMat = new THREE.MeshStandardMaterial({ color: 0x0f1e33, roughness: 0.85 });
+      for (let t = 0; t < 4; t++) {
+        const tier = new THREE.Mesh(new THREE.BoxGeometry(48 + t * 2, 1.4, 2.6), standMat);
+        tier.position.set(0, 0.7 + t * 1.35, -19.5 - t * 2.5);
+        scene.add(tier);
+      }
+      const fanInst = new THREE.InstancedMesh(new THREE.BoxGeometry(0.38, 0.62, 0.32), new THREE.MeshLambertMaterial({ color: 0xffffff }), 140);
+      const dummy = new THREE.Object3D(), col = new THREE.Color(), pal = [0x38bdf8, 0x10b981, 0xf59e0b, 0xf8fafc, 0xef4444];
+      for (let i = 0; i < 140; i++) {
+        const t = i % 4;
+        dummy.position.set(((i * 73) % 44) - 22, 1.65 + t * 1.35, -19.2 - t * 2.5);
+        dummy.updateMatrix(); fanInst.setMatrixAt(i, dummy.matrix);
+        fanInst.setColorAt(i, col.setHex(pal[i % pal.length]));
+      }
+      fanInst.instanceMatrix.needsUpdate = true; fanInst.instanceColor.needsUpdate = true;
+      fanInst.computeBoundingSphere(); scene.add(fanInst);
+
+      // Portero, Balón, Estela y Mira
+      const keeper = new Goalkeeper(shadowTex);
+      scene.add(keeper.group);
+
+      const ballMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(BALL_R, 20, 16),
+        new THREE.MeshStandardMaterial({ map: createBallTexture(maxAniso), roughness: 0.34, metalness: 0.06 })
+      );
+      ballMesh.castShadow = true;
+      scene.add(ballMesh);
+
+      const ballShadow = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.48, 0.48),
+        new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, opacity: 0.65, depthWrite: false })
+      );
+      ballShadow.rotation.x = -Math.PI / 2; ballShadow.position.y = 0.012;
+      scene.add(ballShadow);
+
+      const TRAIL_COUNT = 26;
+      const trailPositions = new Float32Array(TRAIL_COUNT * 3);
+      const trailGeo = new THREE.BufferGeometry();
+      trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
+      const trailLine = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.7 }));
+      trailLine.frustumCulled = false; trailLine.visible = false;
+      scene.add(trailLine);
+
+      const aimReticle = new THREE.Mesh(
+        new THREE.RingGeometry(0.18, 0.25, 24),
+        new THREE.MeshBasicMaterial({ color: 0xf59e0b, side: THREE.DoubleSide, transparent: true, opacity: 0.9, depthTest: false })
+      );
+      aimReticle.visible = false;
+      scene.add(aimReticle);
+
+      // Físicas y Buffer de Repetición en Cámara Lenta (desactivado en teléfonos)
+      const ballPos = new THREE.Vector3(0, BALL_R, 0), ballVel = new THREE.Vector3();
+      const _saveNorm = new THREE.Vector3(), _camPos = new THREE.Vector3(), _camLook = new THREE.Vector3();
+      const _ray = new THREE.Raycaster(), _ndc = new THREE.Vector2(), _hit = new THREE.Vector3();
+      const aimPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -GOAL_Z);
+      let ballInFlight = false, shotResolved = false, flightElapsed = 0, resetTimer = 0, spinY = 0, netRipple = 0;
+      let aimX = 0, aimY = 1.1, lastOutcome = null;
+
+      const MAX_REPLAY_FRAMES = 240;
+      const replayFrames = Array.from({ length: MAX_REPLAY_FRAMES }, () => ({
+        t: 0, bx: 0, by: BALL_R, bz: 0, brx: 0, bry: 0, brz: 0, kx: 0, ky: 0, kroll: 0, kstretch: 0,
+      }));
+      let replayCount = 0, replaySimTime = 0, replayHold = 0, replaySide = 1, replayGoalTime = 0, replayNetDone = false;
+
+      const isGoalReplayEnabled = () => !isPhoneDevice && state.controlMode !== 'touch';
+
+      function recordReplayFrame() {
+        if (!isGoalReplayEnabled() || replayCount >= MAX_REPLAY_FRAMES) return;
+        const kf = replayFrames[replayCount++];
+        const ks = keeper.getReplayState();
+        kf.t = flightElapsed;
+        kf.bx = ballPos.x; kf.by = ballPos.y; kf.bz = ballPos.z;
+        kf.brx = ballMesh.rotation.x; kf.bry = ballMesh.rotation.y; kf.brz = ballMesh.rotation.z;
+        kf.kx = ks.x; kf.ky = ks.y; kf.kroll = ks.roll; kf.kstretch = ks.stretch;
+      }
+
+      function startGoalReplay() {
+        if (replayCount < 6) { resetBall(); state.phase = 'ready'; refreshUI(); return; }
+        ballInFlight = false;
+        state.isReplaying = true;
+        replaySimTime = 0; replayHold = 0; replayNetDone = false;
+        replaySide = ballPos.x >= 0 ? 1 : -1;
+        const f0 = replayFrames[0];
+        for (let i = 0; i < TRAIL_COUNT; i++) {
+          trailPositions[i * 3] = f0.bx; trailPositions[i * 3 + 1] = f0.by; trailPositions[i * 3 + 2] = f0.bz;
+        }
+        trailGeo.attributes.position.needsUpdate = true;
+        trailLine.visible = true;
+        refreshUI();
+      }
+
+      function stepReplay(dt) {
+        const endT = replayFrames[replayCount - 1].t;
+        if (replaySimTime < endT) {
+          replaySimTime = Math.min(endT, replaySimTime + dt * 0.36); // Cámara Lenta 0.36x
+          let idx = 0;
+          while (idx < replayCount - 2 && replayFrames[idx + 1].t < replaySimTime) idx++;
+          const a = replayFrames[idx], b = replayFrames[idx + 1];
+          const alpha = THREE.MathUtils.clamp((replaySimTime - a.t) / Math.max(0.0001, b.t - a.t), 0, 1);
+
+          const bx = THREE.MathUtils.lerp(a.bx, b.bx, alpha);
+          const by = THREE.MathUtils.lerp(a.by, b.by, alpha);
+          const bz = THREE.MathUtils.lerp(a.bz, b.bz, alpha);
+          ballPos.set(bx, by, bz);
+          ballMesh.position.set(bx, by, bz);
+          ballMesh.rotation.set(
+            THREE.MathUtils.lerp(a.brx, b.brx, alpha),
+            THREE.MathUtils.lerp(a.bry, b.bry, alpha),
+            THREE.MathUtils.lerp(a.brz, b.brz, alpha)
+          );
+          ballShadow.position.set(bx, 0.012, bz);
+          ballShadow.scale.setScalar(Math.max(0.45, 1 - by * 0.14));
+          keeper.applyReplayState(
+            THREE.MathUtils.lerp(a.kx, b.kx, alpha),
+            THREE.MathUtils.lerp(a.ky, b.ky, alpha),
+            THREE.MathUtils.lerp(a.kroll, b.kroll, alpha),
+            THREE.MathUtils.lerp(a.kstretch, b.kstretch, alpha)
+          );
+          for (let i = 0; i < TRAIL_COUNT; i++) {
+            const sIdx = Math.max(0, Math.round((idx * (TRAIL_COUNT - 1 - i)) / (TRAIL_COUNT - 1)));
+            const sf = replayFrames[sIdx];
+            trailPositions[i * 3] = sf.bx; trailPositions[i * 3 + 1] = sf.by; trailPositions[i * 3 + 2] = sf.bz;
+          }
+          trailGeo.attributes.position.needsUpdate = true;
+          if (!replayNetDone && replaySimTime >= replayGoalTime) { replayNetDone = true; netRipple = 0.7; }
+        } else {
+          replayHold += dt;
+          if (replayHold >= 0.45) {
+            resetBall(); state.phase = 'ready'; refreshUI();
+          }
+        }
+      }
+
+      function resetBall() {
+        ballPos.set(0, BALL_R, 0); ballVel.set(0, 0, 0); spinY = 0;
+        ballInFlight = false; shotResolved = false; flightElapsed = 0; resetTimer = 0;
+        lastOutcome = null; replayCount = 0; state.isReplaying = false;
+        ballMesh.position.copy(ballPos); ballMesh.rotation.set(0, 0, 0);
+        ballShadow.position.set(0, 0.012, 0); ballShadow.scale.setScalar(1);
+        trailLine.visible = false;
+        keeper.reset();
+      }
+
+      function fireKick(targetX, targetY, power01, curve) {
+        if (state.phase !== 'ready' || ballInFlight || state.isReplaying) return;
+        const p = THREE.MathUtils.clamp(power01, 0.28, 1);
+        const speed = 15.5 + p * 18.5;
+        state.lastSpeedKmh = Math.round(speed * 3.6);
+        const dx = THREE.MathUtils.clamp(targetX, -5.6, 5.6);
+        const dy = THREE.MathUtils.clamp(targetY, 0.15, 3.8);
+        const dz = GOAL_Z - ballPos.z;
+        const t = Math.sqrt(dx * dx + dy * dy + dz * dz) / speed;
+        const c = THREE.MathUtils.clamp(curve, -1, 1);
+        ballVel.set(dx / t - c * 2.5 * t, dy / t + 0.5 * 9.81 * t * 0.88, dz / t);
+        spinY = c; ballInFlight = true; shotResolved = false; flightElapsed = 0; resetTimer = 0;
+        lastOutcome = null; replayCount = 0; replayGoalTime = 0;
+        recordReplayFrame();
+        for (let i = 0; i < TRAIL_COUNT; i++) {
+          trailPositions[i * 3] = ballPos.x; trailPositions[i * 3 + 1] = ballPos.y; trailPositions[i * 3 + 2] = ballPos.z;
+        }
+        trailGeo.attributes.position.needsUpdate = true; trailLine.visible = true;
+        aimReticle.visible = false;
+        keeper.onKick();
+        sound.playKick(p);
+        state.phase = 'flight';
+        refreshUI();
+      }
+
+      function resolveShot(outcome) {
+        if (shotResolved) return;
+        shotResolved = true;
+        lastOutcome = outcome;
+        if (outcome === 'gol') replayGoalTime = flightElapsed;
+        state.phase = 'result';
+        if (outcome === 'gol') {
+          sound.playGoal();
+          state.stats.goals++; state.stats.streak++;
+          el.resTitle.textContent = '¡GOOOL!';
+          el.resTitle.className = 'font-display text-4xl sm:text-5xl font-extrabold tracking-wide text-emerald-400';
+        } else if (outcome === 'atajada') {
+          sound.playSave();
+          state.stats.saves++; state.stats.streak = 0;
+          el.resTitle.textContent = '¡ATAJADA!';
+          el.resTitle.className = 'font-display text-4xl sm:text-5xl font-extrabold tracking-wide text-amber-400';
+        } else if (outcome === 'poste') {
+          sound.playPostHit();
+          state.stats.streak = 0;
+          el.resTitle.textContent = '¡AL POSTE!';
+          el.resTitle.className = 'font-display text-4xl sm:text-5xl font-extrabold tracking-wide text-sky-400';
+        } else {
+          state.stats.streak = 0;
+          el.resTitle.textContent = '¡FUERA!';
+          el.resTitle.className = 'font-display text-4xl sm:text-5xl font-extrabold tracking-wide text-rose-400';
+        }
+        refreshUI();
+      }
+
+      // Controles Ratón y Teléfono
+      let ptrDown = false, sx = 0, sy = 0, st = 0, samples = [];
+      const dom = renderer.domElement;
+      const updateMouseAim = (cx, cy) => {
+        const r = dom.getBoundingClientRect();
+        _ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+        _ray.setFromCamera(_ndc, camera);
+        if (_ray.ray.intersectPlane(aimPlane, _hit)) {
+          aimX = THREE.MathUtils.clamp(_hit.x, -4.6, 4.6);
+          aimY = THREE.MathUtils.clamp(_hit.y, 0.22, 3.1);
+          aimReticle.position.set(aimX, aimY, GOAL_Z + 0.08);
+          aimReticle.visible = true;
+        }
+      };
+      dom.addEventListener('pointerdown', (e) => {
+        if (state.phase !== 'ready' || ballInFlight || state.controlMode === 'camera') return;
+        ptrDown = true; sx = e.clientX; sy = e.clientY; st = performance.now();
+        samples = [{ x: sx, y: sy, t: st }];
+        if (state.controlMode === 'mouse') updateMouseAim(e.clientX, e.clientY);
+      });
+      dom.addEventListener('pointermove', (e) => {
+        if (state.phase !== 'ready' || ballInFlight || state.controlMode === 'camera') return;
+        if (!ptrDown) { if (state.controlMode === 'mouse') updateMouseAim(e.clientX, e.clientY); return; }
+        samples.push({ x: e.clientX, y: e.clientY, t: performance.now() });
+        if (samples.length > 12) samples.shift();
+      });
+      dom.addEventListener('pointerup', (e) => {
+        if (!ptrDown) return;
+        ptrDown = false;
+        if (state.phase !== 'ready' || ballInFlight || state.controlMode === 'camera') return;
+        const dx = e.clientX - sx, dy = sy - e.clientY, dist = Math.hypot(dx, dy);
+        if (state.controlMode === 'mouse' && dist < 16) { fireKick(aimX, aimY, 0.72, 0); return; }
+        if (dist < 24 || dy < 12) return;
+        const dt = Math.max(0.03, (performance.now() - st) / 1000);
+        const power = THREE.MathUtils.clamp((dist / dt - 240) / 1550, 0.34, 1);
+        let curve = 0;
+        if (samples.length >= 3) {
+          const mid = samples[Math.floor(samples.length / 2)];
+          curve = THREE.MathUtils.clamp(-(mid.x - (samples[0].x + samples[samples.length - 1].x) * 0.5) / 70, -0.95, 0.95);
+        }
+        const r = dom.getBoundingClientRect();
+        if (state.controlMode === 'touch') {
+          fireKick((dx / Math.max(150, r.width * 0.42)) * 4.3, 0.35 + (dy / Math.max(170, r.height * 0.42)) * 2.45, power, curve);
+        } else {
+          fireKick(aimX + (dx / r.width) * 4.5, aimY + (dy / r.height) * 2.8, power, curve);
+        }
+      });
+
+      // --- 6. MediaPipe Pose (Cámara Kinect) ---
+      let landmarker = null, stream = null, camActive = false, lastVTime = -1, lastKickAt = 0, missFeetAt = 0;
+      const lHist = [], rHist = [];
+      const EDGES = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[27,31],[24,26],[26,28],[28,32]];
+
+      async function startCameraPose() {
+        if (camActive) return;
+        camActive = true;
+        el.camOverlay.classList.remove('hidden');
+        el.camOverlay.textContent = 'Cargando detector de pose MediaPipe...';
+        try {
+          if (!landmarker) {
+            const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm');
+            landmarker = await PoseLandmarker.createFromOptions(vision, {
+              baseOptions: {
+                modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+                delegate: 'GPU',
+              },
+              runningMode: 'VIDEO', numPoses: 1,
+            }).catch(() => PoseLandmarker.createFromOptions(vision, {
+              baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task', delegate: 'CPU' },
+              runningMode: 'VIDEO', numPoses: 1,
+            }));
+          }
+          el.camOverlay.textContent = 'Esperando permiso de cámara...';
+          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+          el.camVideo.srcObject = stream;
+          await el.camVideo.play();
+          el.camOverlay.classList.add('hidden');
+        } catch {
+          el.camOverlay.innerHTML = `<p class="text-amber-300">No se pudo activar la cámara.</p>`;
+          camActive = false;
+        }
+      }
+
+      function stopCameraPose() {
+        camActive = false;
+        if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; }
+        el.camVideo.srcObject = null;
+      }
+
+      function processPoseFrame(now) {
+        if (!camActive || !landmarker || el.camVideo.readyState < 2) return;
+        if (el.camVideo.currentTime === lastVTime) return;
+        lastVTime = el.camVideo.currentTime;
+        const res = landmarker.detectForVideo(el.camVideo, now);
+        const c = el.camCanvas, v = el.camVideo;
+        if (c.width !== v.videoWidth || c.height !== v.videoHeight) { c.width = v.videoWidth || 640; c.height = v.videoHeight || 480; }
+        const ctx = c.getContext('2d');
+        ctx.clearRect(0, 0, c.width, c.height);
+
+        if (!res.landmarks?.length) { el.bodyStatus.textContent = 'Colócate frente a la cámara'; return; }
+        el.bodyStatus.textContent = 'Cuerpo detectado';
+        const lm = res.landmarks[0], wlm = res.worldLandmarks?.[0];
+
+        const feetOk = ((lm[27]?.visibility ?? 0) > 0.42 && lm[27].y < 0.985) || ((lm[28]?.visibility ?? 0) > 0.42 && lm[28].y < 0.985);
+        if (feetOk) { missFeetAt = 0; el.feetReminder.className = 'text-[11px] leading-snug text-slate-400'; }
+        else {
+          if (!missFeetAt) missFeetAt = now;
+          if (now - missFeetAt > 900) el.feetReminder.className = 'text-[11px] leading-snug text-amber-300 font-semibold';
+        }
+
+        const lHip = lm[23], rHip = lm[24];
+        if (lHip && rHip) {
+          const hCx = (lHip.x + rHip.x) * 0.5, hCy = (lHip.y + rHip.y) * 0.5;
+          const hSpan = Math.max(0.08, Math.hypot(lHip.x - rHip.x, lHip.y - rHip.y));
+          const push = (hist, pt, wi) => {
+            if (!pt || (pt.visibility ?? 0) < 0.4) return;
+            hist.push({ x: pt.x, y: pt.y, wz: wlm?.[wi]?.z ?? 0, t: now });
+            if (hist.length > 7) hist.shift();
+          };
+          push(lHist, lm[31] || lm[27], 31);
+          push(rHist, lm[32] || lm[28], 32);
+          const evalLeg = (hist) => {
+            if (hist.length < 3) return null;
+            const n = hist[hist.length - 1], o = hist[Math.max(0, hist.length - 4)];
+            const dt = Math.max(0.025, (n.t - o.t) / 1000);
+            const vyUp = (o.y - n.y) / dt / hSpan, vxScr = (o.x - n.x) / dt / hSpan, vzFwd = (o.wz - n.wz) / dt;
+            return { vyUp, vxScr, vzFwd, spd: Math.hypot(vyUp, vxScr) + Math.max(0, vzFwd) * 1.4, lift: (hCy - n.y) / hSpan, n };
+          };
+          const le = evalLeg(lHist), re = evalLeg(rHist);
+          const best = le && (!re || le.spd > re.spd) ? le : re;
+          if (best && state.phase === 'ready' && now - lastKickAt > 1150 && (best.vyUp > 1.85 || best.vzFwd > 1.15) && best.spd > 3.2) {
+            lastKickAt = now;
+            const tx = THREE.MathUtils.clamp((hCx - best.n.x) * 14 + best.vxScr * 0.42, -4.3, 4.3);
+            const ty = THREE.MathUtils.clamp(0.38 + Math.max(0, Math.min(1, (best.lift + 2.2) / 2.6)) * 1.65, 0.32, 2.35);
+            const p = THREE.MathUtils.clamp((best.spd - 2.6) / 6.2, 0.38, 1);
+            lHist.length = 0; rHist.length = 0;
+            fireKick(tx, ty, p, THREE.MathUtils.clamp(best.vxScr * 0.14, -0.85, 0.85));
+          }
+        }
+
+        if (state.showSkeleton) {
+          ctx.lineCap = 'round';
+          EDGES.forEach(([a, b]) => {
+            const pa = lm[a], pb = lm[b];
+            if (!pa || !pb || (pa.visibility ?? 1) < 0.38 || (pb.visibility ?? 1) < 0.38) return;
+            ctx.strokeStyle = a >= 23 ? '#10b981' : '#38bdf8';
+            ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 8; ctx.lineWidth = a >= 23 ? 4 : 2.5;
+            ctx.beginPath(); ctx.moveTo(pa.x * c.width, pa.y * c.height); ctx.lineTo(pb.x * c.width, pb.y * c.height); ctx.stroke();
+          });
+        }
+      }
+
+      // --- 7. Bucle Principal ---
+      const clock = new THREE.Clock();
+      function tick() {
+        requestAnimationFrame(tick);
+        const dt = Math.min(0.05, Math.max(0.001, clock.getDelta()));
+        if (state.controlMode === 'camera' && state.phase !== 'menu') processPoseFrame(performance.now());
+
+        if (state.phase !== 'paused') {
+          if (state.isReplaying) {
+            stepReplay(dt);
+          } else {
+            keeper.update(dt, state.difficulty, ballInFlight, ballPos, ballVel, spinY);
+            if (ballInFlight) {
+              const sdt = dt / 3;
+              for (let s = 0; s < 3; s++) {
+                flightElapsed += sdt;
+                ballVel.y -= 9.81 * sdt; ballVel.x += spinY * 5.2 * sdt; ballVel.multiplyScalar(1 - 0.14 * sdt);
+                ballPos.addScaledVector(ballVel, sdt);
+                if (ballPos.y < BALL_R) {
+                  ballPos.y = BALL_R;
+                  ballVel.y = ballVel.y < -0.5 ? -ballVel.y * 0.58 : 0;
+                  ballVel.x *= 0.92; ballVel.z *= 0.92;
+                }
+                if (!shotResolved && Math.abs(ballPos.z - GOAL_Z) < POST_R + BALL_R + 0.08) {
+                  for (const px of [-GOAL_HALF_W, GOAL_HALF_W]) {
+                    if (ballPos.y <= GOAL_H + BALL_R) {
+                      const d = Math.hypot(ballPos.x - px, ballPos.z - GOAL_Z);
+                      if (d < POST_R + BALL_R && d > 0.0001) {
+                        const nx = (ballPos.x - px) / d, nz = (ballPos.z - GOAL_Z) / d;
+                        const dot = ballVel.x * nx + ballVel.z * nz;
+                        if (dot < 0) { ballVel.x -= 1.75 * dot * nx; ballVel.z -= 1.75 * dot * nz; resolveShot('poste'); }
+                      }
+                    }
+                  }
+                }
+                if (!shotResolved && ballPos.z > GOAL_Z - 0.15 && ballVel.z < 0 && keeper.checkSave(ballPos, BALL_R, state.difficulty, _saveNorm)) {
+                  ballVel.copy(_saveNorm).multiplyScalar(Math.max(4.5, ballVel.length() * 0.42));
+                  ballVel.y += 2.2; keeper.celebrate = 1.4; resolveShot('atajada');
+                }
+                if (!shotResolved && ballPos.z <= GOAL_Z - BALL_R * 0.5) {
+                  if (Math.abs(ballPos.x) < GOAL_HALF_W - BALL_R && ballPos.y < GOAL_H - BALL_R) {
+                    netRipple = 0.85; keeper.disappoint = 1.4; resolveShot('gol');
+                  } else resolveShot('fuera');
+                }
+                if (shotResolved && ballPos.z < GOAL_Z && Math.abs(ballPos.x) <= GOAL_HALF_W && ballPos.y <= GOAL_H) {
+                  if (ballPos.z < GOAL_Z - GOAL_D + BALL_R) { ballPos.z = GOAL_Z - GOAL_D + BALL_R; ballVel.z *= -0.18; ballVel.x *= 0.45; }
+                }
+              }
+              ballMesh.position.copy(ballPos);
+              ballMesh.rotation.x -= ballVel.z * dt * 5; ballMesh.rotation.y += spinY * dt * 14;
+              ballShadow.position.set(ballPos.x, 0.012, ballPos.z);
+              for (let i = TRAIL_COUNT - 1; i > 0; i--) {
+                trailPositions[i * 3] = trailPositions[(i - 1) * 3];
+                trailPositions[i * 3 + 1] = trailPositions[(i - 1) * 3 + 1];
+                trailPositions[i * 3 + 2] = trailPositions[(i - 1) * 3 + 2];
+              }
+              trailPositions[0] = ballPos.x; trailPositions[1] = ballPos.y; trailPositions[2] = ballPos.z;
+              trailGeo.attributes.position.needsUpdate = true;
+
+              if (!shotResolved || (lastOutcome === 'gol' && resetTimer < 0.28)) recordReplayFrame();
+              if (!shotResolved && flightElapsed > 2.35) resolveShot('fuera');
+              if (shotResolved) {
+                resetTimer += dt;
+                if (lastOutcome === 'gol' && isGoalReplayEnabled() && resetTimer >= 0.45) {
+                  startGoalReplay();
+                } else if (resetTimer >= 1.85) {
+                  resetBall(); state.phase = 'ready'; refreshUI();
+                }
+              }
+            }
+          }
+          if (netRipple > 0) {
+            netRipple = Math.max(0, netRipple - dt);
+            const arr = netAttr.array;
+            for (let i = 0; i < arr.length; i += 3) {
+              const d = Math.hypot(netBase[i] - ballPos.x, netBase[i + 1] - ballPos.y);
+              arr[i + 2] = netBase[i + 2] - Math.abs(Math.exp(-d * 0.7) * Math.sin(netRipple * 22 - d * 2)) * netRipple * 0.38;
+            }
+            netAttr.needsUpdate = true;
+          }
+        }
+
+        if (state.phase === 'menu') {
+          const t = clock.elapsedTime * 0.25;
+          _camPos.set(Math.sin(t) * 2.2, 2.35, 5.4); _camLook.set(0, 1.05, GOAL_Z + 1.5);
+        } else if (state.isReplaying) {
+          _camPos.set(-replaySide * 4.85, 1.9, -4.3);
+          _camLook.set(THREE.MathUtils.clamp(ballPos.x * 0.72, -3.4, 3.4), THREE.MathUtils.clamp(ballPos.y * 0.8 + 0.35, 0.65, 2.2), THREE.MathUtils.clamp(ballPos.z * 0.85 - 1.4, GOAL_Z - 1.2, -2.5));
+        } else if (ballInFlight) {
+          _camPos.set(THREE.MathUtils.clamp(ballPos.x * 0.35, -1.6, 1.6), 1.78, THREE.MathUtils.clamp(ballPos.z + 4.8, -5.2, 4.15));
+          _camLook.set(THREE.MathUtils.clamp(ballPos.x * 0.55, -2.5, 2.5), THREE.MathUtils.clamp(ballPos.y * 0.65 + 0.6, 0.7, 2.1), GOAL_Z);
+        } else {
+          _camPos.set(0, 1.68, 4.15); _camLook.set(0, 1.15, GOAL_Z);
+        }
+        const camLam = state.isReplaying ? 6.5 : 4.5;
+        camera.position.lerp(_camPos, 1 - Math.exp(-camLam * dt));
+        lookTarget.lerp(_camLook, 1 - Math.exp(-6.5 * dt));
+        camera.lookAt(lookTarget);
+        renderer.render(scene, camera);
+      }
+      tick();
+
+      // --- 8. Eventos de Botones ---
+      const startWithMode = (mode) => {
+        sound.unlock(); sound.playWhistle();
+        state.controlMode = mode; state.phase = 'ready';
+        resetBall();
+        if (mode === 'camera') startCameraPose(); else stopCameraPose();
+        refreshUI();
+      };
+      document.getElementById('start-camera').onclick = () => startWithMode('camera');
+      document.getElementById('start-mouse').onclick = () => startWithMode('mouse');
+      document.getElementById('start-touch').onclick = () => startWithMode('touch');
+
+      document.querySelectorAll('.menu-diff-btn, .diff-btn').forEach((b) => {
+        b.onclick = () => { sound.playUiClick(); state.difficulty = b.dataset.diff; refreshUI(); };
+      });
+      document.querySelectorAll('.mode-btn').forEach((b) => {
+        b.onclick = () => {
+          sound.playUiClick(); state.controlMode = b.dataset.mode;
+          if (state.controlMode === 'camera') startCameraPose(); else stopCameraPose();
+          refreshUI();
+        };
+      });
+      document.getElementById('btn-sound').onclick = (e) => {
+        sound.setMuted(!sound.muted);
+        e.currentTarget.textContent = sound.muted ? 'Sonido: No' : 'Sonido: Sí';
+        if (!sound.muted) { sound.unlock(); sound.playUiClick(); }
+      };
+      document.getElementById('btn-pause').onclick = () => {
+        sound.playUiClick(); state.phaseBeforePause = state.phase; state.phase = 'paused'; refreshUI();
+      };
+      document.getElementById('btn-resume').onclick = () => {
+        sound.playUiClick(); state.phase = state.phaseBeforePause === 'paused' ? 'ready' : state.phaseBeforePause; refreshUI();
+      };
+      const doReset = () => {
+        sound.unlock(); sound.playWhistle();
+        state.stats = { goals: 0, saves: 0, streak: 0 };
+        resetBall(); state.phase = 'ready'; refreshUI();
+      };
+      document.getElementById('btn-reset').onclick = doReset;
+      document.getElementById('btn-pause-reset').onclick = doReset;
+      document.getElementById('btn-toggle-skeleton').onclick = (e) => {
+        sound.playUiClick(); state.showSkeleton = !state.showSkeleton;
+        e.currentTarget.textContent = state.showSkeleton ? 'Ocultar Esqueleto' : 'Mostrar Esqueleto';
+      };
+
+      window.addEventListener('resize', () => {
+        camera.aspect = el.mount.clientWidth / Math.max(1, el.mount.clientHeight);
+        camera.updateProjectionMatrix();
+        renderer.setSize(el.mount.clientWidth, el.mount.clientHeight);
+      });
+
+      refreshUI();
+    </script>
+  </body>
+</html>
