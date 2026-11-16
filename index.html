@@ -51,7 +51,7 @@
     </script>
   </head>
   <body>
-    <main class="relative h-dvh w-screen overflow-hidden bg-[#060f1a]">
+    <main class="relative h-screen w-screen overflow-hidden bg-[#060f1a]">
       <div id="scene-mount" class="absolute inset-0 h-full w-full"></div>
 
       <!-- Barra Superior -->
@@ -108,7 +108,7 @@
         </div>
       </header>
 
-      <!-- Resultado del tiro, repetición e indicación -->
+      <!-- Resultado del tiro, cámara lenta e indicación -->
       <div id="shot-feedback" class="hidden pointer-events-none absolute inset-x-0 top-20 bottom-4 z-10 flex flex-col items-center justify-between px-4">
         <div class="mt-2">
           <div id="result-card" class="hidden rounded-xl bg-[#07111e]/90 border border-white/15 px-6 py-3 text-center shadow-xl">
@@ -211,7 +211,6 @@
     <script type="module">
       import * as THREE from 'three';
       import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-      import { FilesetResolver, PoseLandmarker } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/+esm';
 
       // --- 1. Motor de Sonido Web Audio API ---
       class SoundEngine {
@@ -655,6 +654,9 @@
 
       // --- 5. Escena 3D Three.js ---
       const GOAL_Z = -11.2, GOAL_HALF_W = 3.66, GOAL_H = 2.44, GOAL_D = 1.95, POST_R = 0.065, BALL_R = 0.115;
+      const viewW = Math.max(1, el.mount.clientWidth || window.innerWidth);
+      const viewH = Math.max(1, el.mount.clientHeight || window.innerHeight);
+
       const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -662,7 +664,7 @@
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-      renderer.setSize(el.mount.clientWidth, el.mount.clientHeight);
+      renderer.setSize(viewW, viewH);
       renderer.domElement.className = 'webgl-canvas';
       el.mount.appendChild(renderer.domElement);
 
@@ -670,7 +672,7 @@
       scene.background = new THREE.Color(0x071324);
       scene.fog = new THREE.FogExp2(0x071324, 0.0115);
 
-      const camera = new THREE.PerspectiveCamera(48, el.mount.clientWidth / Math.max(1, el.mount.clientHeight), 0.1, 180);
+      const camera = new THREE.PerspectiveCamera(48, viewW / viewH, 0.1, 180);
       camera.position.set(0, 1.68, 4.15);
       const lookTarget = new THREE.Vector3(0, 1.15, GOAL_Z);
       camera.lookAt(lookTarget);
@@ -826,7 +828,7 @@
       function stepReplay(dt) {
         const endT = replayFrames[replayCount - 1].t;
         if (replaySimTime < endT) {
-          replaySimTime = Math.min(endT, replaySimTime + dt * 0.36); // Cámara Lenta 0.36x
+          replaySimTime = Math.min(endT, replaySimTime + dt * 0.36);
           let idx = 0;
           while (idx < replayCount - 2 && replayFrames[idx + 1].t < replaySimTime) idx++;
           const a = replayFrames[idx], b = replayFrames[idx + 1];
@@ -977,7 +979,7 @@
         }
       });
 
-      // --- 6. MediaPipe Pose (Cámara Kinect) ---
+      // --- 6. MediaPipe Pose (Carga Dinámica Segura) ---
       let landmarker = null, stream = null, camActive = false, lastVTime = -1, lastKickAt = 0, missFeetAt = 0;
       const lHist = [], rHist = [];
       const EDGES = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[27,31],[24,26],[26,28],[28,32]];
@@ -989,14 +991,15 @@
         el.camOverlay.textContent = 'Cargando detector de pose MediaPipe...';
         try {
           if (!landmarker) {
-            const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm');
-            landmarker = await PoseLandmarker.createFromOptions(vision, {
+            const mp = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs');
+            const vision = await mp.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+            landmarker = await mp.PoseLandmarker.createFromOptions(vision, {
               baseOptions: {
                 modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
                 delegate: 'GPU',
               },
               runningMode: 'VIDEO', numPoses: 1,
-            }).catch(() => PoseLandmarker.createFromOptions(vision, {
+            }).catch(() => mp.PoseLandmarker.createFromOptions(vision, {
               baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task', delegate: 'CPU' },
               runningMode: 'VIDEO', numPoses: 1,
             }));
@@ -1006,8 +1009,8 @@
           el.camVideo.srcObject = stream;
           await el.camVideo.play();
           el.camOverlay.classList.add('hidden');
-        } catch {
-          el.camOverlay.innerHTML = `<p class="text-amber-300">No se pudo activar la cámara.</p>`;
+        } catch (err) {
+          el.camOverlay.innerHTML = `<p class="text-amber-300">No se pudo activar la cámara. Prueba con Ratón o Teléfono.</p>`;
           camActive = false;
         }
       }
@@ -1229,9 +1232,11 @@
       };
 
       window.addEventListener('resize', () => {
-        camera.aspect = el.mount.clientWidth / Math.max(1, el.mount.clientHeight);
+        const w = Math.max(1, el.mount.clientWidth || window.innerWidth);
+        const h = Math.max(1, el.mount.clientHeight || window.innerHeight);
+        camera.aspect = w / h;
         camera.updateProjectionMatrix();
-        renderer.setSize(el.mount.clientWidth, el.mount.clientHeight);
+        renderer.setSize(w, h);
       });
 
       refreshUI();
